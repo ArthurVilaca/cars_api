@@ -1,9 +1,9 @@
 class CarsController < ApplicationController
-  before_action :validate_user
+  before_action :validate_user, :recommendations
 
   def index
-    cars = CarService.new(@user, allow_params).find_cars
-    render json: cars, user: @user
+    cars = CarService.new(@user, @recommendations, allow_params).find_cars
+    render json: cars, recommendations: @recommendations
   end
 
   protected
@@ -20,5 +20,9 @@ class CarsController < ApplicationController
       :price_max,
       :page
     )
+  end
+
+  def recommendations
+    @recommendations = ExternalRecommendationService.new(@user).recommended
   end
 end

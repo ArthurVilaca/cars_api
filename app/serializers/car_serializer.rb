@@ -4,13 +4,12 @@ class CarSerializer < ActiveModel::Serializer
   def brand
     {
       id: self.object.brand_id,
-      name: self.object.brand_name
+      name: self.object.brand.name
     }
   end
 
   def rank_score
-    recommendations = ExternalRecommendationService.new(@instance_options[:user]).recommended
-    car_recommendation = recommendations.detect { |recommendation| recommendation['car_id'] == self.object.id }
+    car_recommendation = @instance_options[:recommendations].detect { |recommendation| recommendation['car_id'] == self.object.id }
 
     return car_recommendation['rank_score'] if car_recommendation.present?
 
