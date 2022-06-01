@@ -1,7 +1,7 @@
 FactoryBot.define do
   factory :car do
     model { Faker::Name.unique.name }
-    price { 1 }
+    price { 0.5 }
     brand { create(:brand) }
   end
 end

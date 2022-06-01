@@ -6,21 +6,11 @@ class CarService
   end
 
   def find_cars
-    preferred_brands = @user.preferred_brands.map(&:id).join(',')
-    preferred_price_range = @user.preferred_price_range
-
     cars = Car.joins(:brand).includes(:brand).select('cars.*')
 
     label_case = <<-SQL
-      CASE
-      WHEN brand_id
-        IN (#{preferred_brands}) and price between #{preferred_price_range.first} AND #{preferred_price_range.last}
-        THEN 2
-      WHEN brand_id
-        IN (#{preferred_brands})
-        THEN 1
-      ELSE 0 END as label
-      #{rank_score_sql()}
+      #{label_match_case_when_sql()},
+      #{rank_score_case_when_sql()}
     SQL
     cars = cars.select(ActiveRecord::Base::sanitize_sql(label_case))
 
@@ -31,15 +21,31 @@ class CarService
     cars.order(label: :desc, rank: :desc, price: :asc).page(@params[:page])
   end
 
-  def rank_score_sql
-    return '' if @recommendations.empty?
+  def label_match_case_when_sql
+    preferred_brands = @user.preferred_brands.map(&:id).join(',')
+    preferred_price_range = @user.preferred_price_range
+
+    <<-SQL
+      CASE
+      WHEN brand_id
+        IN (#{preferred_brands}) and price between #{preferred_price_range.first} AND #{preferred_price_range.last}
+        THEN 2
+      WHEN brand_id
+        IN (#{preferred_brands})
+        THEN 1
+      ELSE 0 END as label
+    SQL
+  end
+
+  def rank_score_case_when_sql
+    return '0 as rank' if @recommendations.empty?
 
     case_when = @recommendations.map do |recommendation|
-      'WHEN cars.id = ' + recommendation['car_id'].to_s + ' THEN ' + recommendation['rank_score'].to_s
+      "WHEN cars.id = #{recommendation['car_id']} THEN #{recommendation['rank_score']}"
     end
 
     <<-SQL
-      , CASE #{case_when.join(' ')}
+      CASE #{case_when.join(' ')}
       ELSE 0 END as rank
     SQL
   end

@@ -43,16 +43,23 @@ RSpec.describe CarService do
       end
     end
 
-    context 'pagination' do
+    context 'pagination with order' do
       before do
-        create_list(:car, 52)
+        create_list(:car, 17)
+        user.preferred_brands.each do |brand|
+          create_list(:car, 2, brand: brand)
+          create(:car, brand: brand, price: 1.5)
+        end
       end
 
       context 'page 1' do
         let(:params) { { page: 1 } }
 
         it 'should search for the paginated cars' do
-          expect(service.find_cars.to_a.count).to eq(20)
+          cars = service.find_cars.to_a
+          expect(cars.count).to eq(20)
+          expect(cars.select { |car| car.label == 2 }.count).to eq(2)
+          expect(cars.select { |car| car.label == 1 }.count).to eq(4)
         end
       end
 
@@ -60,16 +67,27 @@ RSpec.describe CarService do
         let(:params) { { page: 2 } }
 
         it 'should search for the paginated cars' do
-          expect(service.find_cars.to_a.count).to eq(20)
+          cars = service.find_cars.to_a
+          expect(cars.count).to eq(8)
+          expect(cars.select { |car| car.label == 2 }.count).to eq(0)
+          expect(cars.select { |car| car.label == 1 }.count).to eq(0)
         end
       end
+    end
+  end
 
-      context 'page 3' do
-        let(:params) { { page: 3 } }
+  describe '#rank_score_case_when_sql' do
+    context 'when no recommendations' do
+      it 'should search for the paginated cars' do
+        expect(service.rank_score_case_when_sql).to eq('0 as rank')
+      end
+    end
 
-        it 'should search for the paginated cars' do
-          expect(service.find_cars.to_a.count).to eq(17)
-        end
+    context 'with recommendations' do
+      let(:service) { described_class.new(user, JSON.parse('[{"car_id": 1, "rank_score": 1}]'), params) }
+
+      it 'should search for the paginated cars' do
+        expect(service.rank_score_case_when_sql).to include('CASE WHEN cars.id = 1 THEN 1')
       end
     end
   end
